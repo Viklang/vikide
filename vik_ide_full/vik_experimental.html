@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🧪 Vik Experimental IDE</title>
+  <style>
+    body { background: #000; color: #39ff14; font-family: monospace; margin: 0; padding: 2rem; }
+    textarea, pre {
+      width: 100%; max-width: 1000px; margin: auto; display: block;
+      background: #000; color: #39ff14; border: 1px solid #39ff14;
+      padding: 1rem; border-radius: 6px; font-size: 1rem;
+    }
+    textarea { height: 300px; resize: vertical; }
+    pre { margin-top: 1rem; min-height: 200px; white-space: pre-wrap; overflow-y: auto; }
+    button {
+      margin-top: 1rem; background: #39ff14; color: black; border: none;
+      padding: 10px 20px; font-size: 16px; cursor: pointer; font-weight: bold;
+    }
+    #inputWrapper {
+      margin-top: 1rem;
+      display: none;
+      text-align: center;
+    }
+    #askPrompt {
+      margin-bottom: 0.5rem;
+    }
+    #askInput {
+      padding: 0.5rem;
+      background: #000;
+      border: 1px solid #39ff14;
+      color: #39ff14;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 Vik Experimental IDE</h1>
+  <textarea id="code" spellcheck="false">say Hello, welcome to the experimental Vik IDE!
+get name What is your name?
+getIn age Enter your age
+say You are vari,name and age vari,age
+calc double = age a age
+say Your age doubled: vari,double
+
+fun greet
+  say Greeting from function!
+endf
+
+call greet
+
+set isTeen = false
+i age >= 13
+  i age < 20
+    set isTeen = true
+  enif
+enif
+
+i isTeen == true
+  say You are a teenager!
+enif
+
+ar colors = red,green,blue
+say Your colors: vari,colors
+codehtml: <hr><b>This is experimental output.</b></textarea>
+
+  <button onclick="run()">▶️ Run</button>
+  <pre id="output"></pre>
+  <div id="inputWrapper">
+    <div id="askPrompt"></div>
+    <input type="text" id="askInput" />
+  </div>
+
+  <script>
+    const codeBox = document.getElementById('code');
+    const output = document.getElementById('output');
+    const inputWrapper = document.getElementById('inputWrapper');
+    const askPrompt = document.getElementById('askPrompt');
+    const askInput = document.getElementById('askInput');
+
+    function print(msg) {
+      output.innerText += msg + '\n';
+    }
+
+    function getVal(vars, v) {
+      return vars[v] !== undefined ? vars[v] : v;
+    }
+
+    function ask(question) {
+      return new Promise(resolve => {
+        askPrompt.textContent = question;
+        askInput.value = '';
+        inputWrapper.style.display = 'block';
+        askInput.focus();
+
+        const handler = (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            inputWrapper.style.display = 'none';
+            document.removeEventListener('keydown', handler);
+            print(question + askInput.value);
+            resolve(askInput.value);
+          }
+        };
+
+        document.addEventListener('keydown', handler);
+      });
+    }
+
+    async function run() {
+      output.innerText = '';
+      const lines = codeBox.value.split('\n').map(x => x.trim()).filter(Boolean);
+      let vars = {}, funcs = {}, execStack = [true], funcMode = false, funcName = '', funcBuffer = [], i = 0;
+
+      while (i < lines.length) {
+        let line = lines[i++];
+        if (!execStack.every(x => x)) continue;
+
+        if (funcMode && line !== 'endf') { funcBuffer.push(line); continue; }
+
+        if (line.startsWith('say ')) print(line.slice(4).replace(/vari,(\w+)/g, (_, v) => vars[v] ?? '[undefined]'));
+        else if (line.startsWith('getIn ')) vars[line.split(' ')[1]] = parseInt(await ask(line.split(' ').slice(2).join(' '))) || 0;
+        else if (line.startsWith('get ')) vars[line.split(' ')[1]] = await ask(line.split(' ').slice(2).join(' '));
+        else if (line.startsWith('set ')) { let [_, k, __, v] = line.split(' '); vars[k] = v === 'true' ? true : v === 'false' ? false : isNaN(v) ? v : +v; }
+        else if (line.startsWith('calc ')) {
+          let [_, t, eq, a, op, b] = line.split(' ');
+          a = +getVal(vars, a); b = +getVal(vars, b);
+          vars[t] = op === 'a' ? a + b : op === 's' ? a - b : op === 'm' ? a * b : Math.floor(a / b);
+        }
+        else if (line.startsWith('ar ')) { let [_, k, __, ...rest] = line.split(/[,=\s]+/); vars[k] = rest; }
+        else if (line.startsWith('codehtml:')) output.innerHTML += line.slice(10).replace(/vari,(\w+)/g, (_, v) => vars[v] ?? '[undefined]');
+        else if (line.startsWith('fun ')) { funcMode = true; funcName = line.split(' ')[1]; funcBuffer = []; }
+        else if (line === 'endf') { funcs[funcName] = [...funcBuffer]; funcMode = false; }
+        else if (line.startsWith('call ')) lines.splice(i, 0, ...funcs[line.split(' ')[1]] || []);
+        else if (line.startsWith('i ')) {
+          let [_, a, op, b] = line.split(' ');
+          a = getVal(vars, a); b = getVal(vars, b);
+          execStack.push(eval(`${JSON.stringify(a)} ${op} ${JSON.stringify(b)}`));
+        }
+        else if (line === 'el') { execStack.pop(); execStack.push(!execStack.pop()); }
+        else if (line === 'enif') execStack.pop();
+      }
+    }
+  </script>
+</body>
+</html>

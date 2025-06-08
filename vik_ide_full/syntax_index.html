@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vik Script Syntax Index</title>
+  <style>
+    body {
+      background-color: #000;
+      color: #0f0;
+      font-family: monospace;
+      margin: 0;
+      padding: 20px;
+      white-space: pre-wrap;
+      font-size: 18px;
+      line-height: 1.6;
+    }
+
+    h1 {
+      color: #0f0;
+      text-align: center;
+      margin-bottom: 20px;
+      text-shadow: 0 0 5px #0f0;
+    }
+
+    code {
+      display: block;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Vik Script Syntax and Examples</h1>
+
+<code>
+// Input  
+get name What is your name?         // Get string input into variable 'name'  
+getIn age What is your age?         // Get integer input into variable 'age'  
+
+// Output  
+say Hello vari,name!                // Print message, replace vari,name with variable value  
+
+// Variables  
+set condition_met = false           // Set variable  
+
+// Conditions (if, else if, else, end if)  
+i age >= 18  
+  say You are an adult.  
+  set condition_met = true  
+enif  
+
+i condition_met == false  
+  i age >= 13  
+    say You are a teenager.  
+    set condition_met = true  
+  enif  
+enif  
+
+i condition_met == false  
+  say You are a child.  
+enif  
+
+// Arrays  
+ar colors = red,green,blue          // Define array  
+say Your favorite colors might be vari,colors  
+
+// Math Operations  
+calc double_age = age a age         // a=add, s=subtract, m=multiply, d=divide  
+say Your age doubled is vari,double_age  
+
+// Functions  
+fun greet  
+  say Welcome vari,name to Vik Script!  
+endf  
+
+call greet  
+
+// Join Variables  
+joi,name double_age                 // Join two variables as string with space  
+say Joined: vari,name double_age
+</code>
+
+</body>
+</html>

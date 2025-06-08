@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vik Script IDE</title>
+  <style>
+    body {
+      font-family: monospace;
+      background-color: black;
+      color: #39ff14;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+
+    textarea {
+      width: 90%;
+      max-width: 900px;
+      height: 300px;
+      background: #000;
+      color: #39ff14;
+      border: 1px solid #39ff14;
+      padding: 1rem;
+      font-size: 1rem;
+      resize: vertical;
+      border-radius: 5px;
+      font-family: monospace;
+    }
+
+    button {
+      margin-top: 1rem;
+      padding: 0.6rem 2rem;
+      background: #39ff14;
+      border: none;
+      color: black;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    #output {
+      width: 90%;
+      max-width: 900px;
+      margin-top: 1.5rem;
+      padding: 1rem;
+      background: #000;
+      border: 1px solid #39ff14;
+      color: #39ff14;
+      white-space: pre-wrap;
+      min-height: 200px;
+      max-height: 400px;
+      overflow-y: auto;
+      border-radius: 5px;
+      font-family: monospace;
+      font-size: 1rem;
+      line-height: 1.2;
+      scrollbar-color: #39ff14 #000;
+      scrollbar-width: thin;
+    }
+
+    ::-webkit-scrollbar {
+      width: 10px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background-color: #39ff14;
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #000;
+    }
+
+    .vik-line {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .vik-input {
+      background: transparent;
+      border: none;
+      color: #39ff14;
+      font-family: monospace;
+      font-size: 1rem;
+      font-weight: normal;
+      letter-spacing: normal;
+      white-space: pre;
+      display: inline-block;
+      outline: none;
+      padding: 0;
+      margin: 0;
+      line-height: 1.2;
+      min-width: 1ch;
+    }
+
+    h1 {
+      color: #39ff14;
+    }
+  </style>
+</head>
+<body>
+  <h1>📝 Vik Script IDE</h1>
+
+  <textarea id="editor" spellcheck="false">say Hello, welcome to Vik Script + HTML!
+
+get name
+get color
+
+say Nice to meet you vari,name!
+codehtml: &lt;p style="color: vari,color;"&gt;This text is your favorite color!&lt;/p&gt;
+
+getIn number
+say You entered the number vari,number.
+
+joi,vari fullname = name name
+say Your full name is vari,fullname
+
+codehtml: &lt;hr&gt;
+codehtml: &lt;b&gt;Thanks for using Vik Script IDE!&lt;/b&gt;
+
+say Let's show HTML rendering!
+codehtml: &lt;h2&gt;HTML Injection from Vik Script&lt;/h2&gt;
+codehtml: &lt;p&gt;This was added via Vik's HTML support.&lt;/p&gt;</textarea>
+
+  <button onclick="runScript()">▶️ Run</button>
+  <div id="output"></div>
+
+  <script>
+    const editor = document.getElementById("editor");
+    const outputBox = document.getElementById("output");
+
+    let stringVars = {};
+    let intVars = {};
+    let scriptLines = [];
+    let currentLine = 0;
+
+    function replaceVars(line) {
+      return line.replace(/vari,(\w+)/g, (_, varName) => {
+        if (stringVars[varName]) return stringVars[varName];
+        if (intVars[varName] !== undefined) return intVars[varName].toString();
+        return "[undefined]";
+      });
+    }
+
+    function appendOutput(text, newline = true) {
+      const span = document.createElement("span");
+      span.textContent = text + (newline ? "\n" : "");
+      outputBox.appendChild(span);
+      outputBox.scrollTop = outputBox.scrollHeight;
+    }
+
+    function askInput(promptText, callback) {
+      const line = document.createElement("div");
+      line.className = "vik-line";
+
+      const promptSpan = document.createElement("span");
+      promptSpan.textContent = promptText;
+      line.appendChild(promptSpan);
+
+      const input = document.createElement("span");
+      input.className = "vik-input";
+      input.contentEditable = true;
+      input.spellcheck = false;
+      line.appendChild(input);
+
+      outputBox.appendChild(line);
+      outputBox.scrollTop = outputBox.scrollHeight;
+      input.focus();
+
+      input.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          const value = input.textContent.trim();
+          const fullText = document.createElement("div");
+          fullText.className = "vik-line";
+          fullText.textContent = promptText + value;
+          line.replaceWith(fullText);
+          callback(value);
+        }
+      });
+    }
+
+    function runNextLine() {
+      if (currentLine >= scriptLines.length) return;
+
+      let line = scriptLines[currentLine++].trim();
+      if (!line || line.startsWith("!comment!")) {
+        runNextLine();
+        return;
+      }
+
+      let tokens = line.split(" ");
+      let cmd = tokens[0];
+
+      if (cmd === "say") {
+        let msg = line.slice(4).trim();
+        appendOutput(replaceVars(msg));
+        runNextLine();
+      } else if (cmd === "get") {
+        let varName = tokens[1];
+        askInput(`${varName}: `, value => {
+          stringVars[varName] = value;
+          runNextLine();
+        });
+      } else if (cmd === "getIn") {
+        let varName = tokens[1];
+        askInput(`${varName}: `, value => {
+          let number = parseInt(value);
+          intVars[varName] = isNaN(number) ? 0 : number;
+          runNextLine();
+        });
+      } else if (cmd === "joi,vari") {
+        let varName = tokens[1];
+        let eq = tokens[2];
+        let left = tokens[3] in stringVars ? stringVars[tokens[3]] : tokens[3];
+        let right = tokens[4] in stringVars ? stringVars[tokens[4]] : tokens[4];
+        if (eq === "=") {
+          stringVars[varName] = left + " " + right;
+        } else {
+          appendOutput("Syntax error in joi,vari.");
+        }
+        runNextLine();
+      } else if (cmd === "codehtml:") {
+        let htmlContent = line.slice(10).trim();
+        const div = document.createElement("div");
+        div.innerHTML = replaceVars(htmlContent);
+        outputBox.appendChild(div);
+        outputBox.scrollTop = outputBox.scrollHeight;
+        runNextLine();
+      } else {
+        appendOutput(`Unknown command: ${cmd}`);
+        runNextLine();
+      }
+    }
+
+    function runScript() {
+      stringVars = {};
+      intVars = {};
+      outputBox.innerHTML = "";
+      scriptLines = editor.value.split("\n");
+      currentLine = 0;
+      runNextLine();
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Download Main CPP</title>
+  <style>
+    body {
+      background: black;
+      color: #39ff14;
+      font-family: monospace;
+      text-align: center;
+      padding: 2rem;
+    }
+    a.download {
+      display: inline-block;
+      margin-top: 2rem;
+      font-size: 1.2rem;
+      color: #39ff14;
+      text-decoration: none;
+      border: 2px solid #39ff14;
+      padding: 1rem 2rem;
+      border-radius: 10px;
+      transition: background 0.2s, color 0.2s;
+    }
+    a.download:hover {
+      background: #39ff14;
+      color: black;
+    }
+  </style>
+</head>
+<body>
+  <h1>📄 Download Vik Script main.cpp</h1>
+  <a href="data:text/plain;charset=utf-8,<!--CPP-->" download="main.cpp" class="download">⬇ Download main.cpp</a>
+
+  <script>
+    const cppCode = `#include <iostream>
+#include <string>
+#include <sstream>
+#include <unordered_map>
+#include <cstdlib>
+#include <cstdio>
+#include <vector>
+#include <algorithm>
+
+#define in int
+using thr = std::string;
+#define say(x) std::cout << x << std::endl
+#define thr_of(x) std::to_string(x)
+#define vari auto
+
+std::unordered_map<thr, thr> stringVars;
+std::unordered_map<thr, in> intVars;
+std::vector<thr> scriptLines;
+
+thr replaceVars(const thr& line) {
+    thr result = line;
+    size_t start = 0;
+    while ((start = result.find("vari,", start)) != thr::npos) {
+        size_t end = result.find_first_of(" \\n", start);
+        if (end == thr::npos) end = result.length();
+        thr varName = result.substr(start + 5, end - (start + 5));
+        if (stringVars.count(varName)) {
+            result.replace(start, 5 + varName.length(), stringVars[varName]);
+        } else if (intVars.count(varName)) {
+            result.replace(start, 5 + varName.length(), thr_of(intVars[varName]));
+        } else {
+            result.replace(start, 5 + varName.length(), "[undefined]");
+        }
+    }
+    return result;
+}
+
+void showHelp() {
+    say("=== Vik Script Help ===");
+    say("say <message> - Print message");
+    say("get <var> <prompt> - Get string input");
+    say("getIn <var> <prompt> - Get integer input");
+    say("set <var> = <value> - Set string or int variable");
+    say("calc <var> = <num1> <op> <num2> - Math ops (a/s/m/d)");
+    say("e <line> <text> - Edit line");
+    say("del <line> - Delete line");
+    say("al <text> - Append line");
+    say("run - Execute all lines");
+    say("help - Show this help");
+    say("end - Exit");
+    say("=======================");
+}
+
+void executeLine(const thr& line) {
+    std::istringstream iss(line);
+    thr cmd;
+    iss >> cmd;
+    if (cmd == "say") {
+        thr message;
+        std::getline(iss, message);
+        message = message.substr(1);
+        say(replaceVars(message));
+    } else if (cmd == "get") {
+        thr var, prompt;
+        iss >> var;
+        std::getline(iss, prompt);
+        say(prompt.substr(1));
+        thr value;
+        std::getline(std::cin, value);
+        stringVars[var] = value;
+    } else if (cmd == "getIn") {
+        thr var, prompt;
+        iss >> var;
+        std::getline(iss, prompt);
+        say(prompt.substr(1));
+        in value;
+        std::cin >> value;
+        std::cin.ignore();
+        intVars[var] = value;
+    } else if (cmd == "set") {
+        thr var, eq, val;
+        iss >> var >> eq;
+        std::getline(iss, val);
+        val = val.substr(1);
+        if (isdigit(val[0])) intVars[var] = std::stoi(val);
+        else stringVars[var] = val;
+    } else if (cmd == "calc") {
+        thr var, eq;
+        in num1, num2;
+        char op;
+        iss >> var >> eq >> num1 >> op >> num2;
+        if (op == 'a') intVars[var] = num1 + num2;
+        else if (op == 's') intVars[var] = num1 - num2;
+        else if (op == 'm') intVars[var] = num1 * num2;
+        else if (op == 'd') intVars[var] = (num2 != 0 ? num1 / num2 : 0);
+    } else {
+        say("Unknown command: " + cmd);
+    }
+}
+
+void runScript() {
+    std::sort(scriptLines.begin(), scriptLines.end(), [](const thr& a, const thr& b) {
+        std::istringstream sa(a), sb(b);
+        int na, nb;
+        sa >> na; sb >> nb;
+        return na < nb;
+    });
+    for (const auto& line : scriptLines) {
+        size_t space = line.find(' ');
+        if (space != thr::npos)
+            executeLine(line.substr(space + 1));
+    }
+}
+
+void runScriptFromInput() {
+    say("Enter Vik Script lines (type \`end\` to exit, \`help\` for help):");
+    thr line;
+    while (true) {
+        std::getline(std::cin, line);
+        if (line == "end") break;
+        if (line == "help") { showHelp(); continue; }
+        if (line.rfind("e ", 0) == 0) {
+            int idx;
+            thr rest;
+            std::istringstream(line.substr(2)) >> idx;
+            rest = line.substr(line.find_first_of(" ", 2 + std::to_string(idx).length()) + 1);
+            for (auto& l : scriptLines) {
+                if (std::stoi(l.substr(0, l.find(' '))) == idx) {
+                    l = std::to_string(idx) + " " + rest;
+                    break;
+                }
+            }
+        } else if (line.rfind("del ", 0) == 0) {
+            int idx;
+            std::istringstream(line.substr(4)) >> idx;
+            scriptLines.erase(std::remove_if(scriptLines.begin(), scriptLines.end(), [idx](const thr& l) {
+                return std::stoi(l.substr(0, l.find(' '))) == idx;
+            }), scriptLines.end());
+        } else if (line.rfind("al ", 0) == 0) {
+            scriptLines.push_back(line.substr(3));
+        } else if (line == "run") {
+            runScript();
+        } else if (!line.empty()) {
+            scriptLines.push_back(line);
+        }
+    }
+}
+
+in main() {
+    runScriptFromInput();
+    return 0;
+}`;
+    const downloadLink = document.querySelector("a.download");
+    downloadLink.href = "data:text/plain;charset=utf-8," + encodeURIComponent(cppCode);
+  </script>
+</body>
+</html>

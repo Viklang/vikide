@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vik Script IDE</title>
+  <style>
+    body {
+      background: #000;
+      color: #0f0;
+      font-family: monospace;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    #input, #output {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px;
+      background: #000;
+      color: #0f0;
+      border: 2px solid #0f0;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 16px;
+      overflow-y: auto;
+      resize: vertical;
+    }
+    #input {
+      height: 40vh;
+    }
+    #output {
+      height: 60vh;
+      white-space: pre-wrap;
+    }
+    #input::-webkit-scrollbar, #output::-webkit-scrollbar, #helpBox::-webkit-scrollbar {
+      width: 8px;
+    }
+    #input::-webkit-scrollbar-thumb, #output::-webkit-scrollbar-thumb, #helpBox::-webkit-scrollbar-thumb {
+      background: #0f0;
+    }
+    #run {
+      background: #0f0;
+      color: #000;
+      border: none;
+      padding: 10px;
+      width: 100%;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    #help {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #0f0;
+      color: #000;
+      border: none;
+      width: 30px;
+      height: 30px;
+      font-weight: bold;
+      font-size: 18px;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    #helpBox {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #000;
+      color: #0f0;
+      border: 2px solid #0f0;
+      box-shadow: 0 0 20px #0f0;
+      padding: 20px;
+      display: none;
+      width: 80vw;
+      height: 60vh;
+      overflow-y: auto;
+      z-index: 100;
+      white-space: pre-wrap;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+
+<textarea id="input" placeholder="Write Vik Script here..." spellcheck="false"></textarea>
+<button id="run">Run</button>
+<pre id="output" spellcheck="false"></pre>
+<button id="help">?</button>
+<div id="helpBox">
+// Vik Script Syntax and Examples
+
+// Input
+get name What is your name?         // Get string input into variable 'name'
+getIn age What is your age?          // Get integer input into variable 'age'
+
+// Output
+say Hello vari,name!                 // Print message, replace vari,name with variable value
+
+// Variables
+set condition_met = false            // Set variable
+
+// Conditions (if, else if, else, end if)
+i age >= 18
+  say You are an adult.
+  set condition_met = true
+enif
+
+i condition_met == false
+  i age >= 13
+    say You are a teenager.
+    set condition_met = true
+  enif
+enif
+
+i condition_met == false
+  say You are a child.
+enif
+
+// Arrays
+ar colors = red,green,blue           // Define array
+say Your favorite colors might be vari,colors
+
+// Math Operations
+calc double_age = age a age          // a=add, s=subtract, m=multiply, d=divide
+say Your age doubled is vari,double_age
+
+// Functions
+fun greet
+  say Welcome vari,name to Vik Script!
+endf
+
+call greet
+
+// Join Variables
+joi,name double_age                  // Join two variables as string with space
+say Joined: vari,name double_age
+</div>
+
+<script>
+  const inputBox = document.getElementById('input');
+  const outputBox = document.getElementById('output');
+  const helpBtn = document.getElementById('help');
+  const helpBox = document.getElementById('helpBox');
+  const runBtn = document.getElementById('run');
+
+  helpBtn.onclick = () => {
+    helpBox.style.display = helpBox.style.display === 'block' ? 'none' : 'block';
+  };
+
+  let vars = {};
+  let funcs = {};
+  let currentFunc = null;
+  let capturingFunc = false;
+
+  async function runVik(code) {
+    vars = {};
+    funcs = {};
+    currentFunc = null;
+    capturingFunc = false;
+    let lines = code.split('\n').map(l => l.trim()).filter(Boolean);
+    let i = 0;
+    let execStack = [true];
+    let funcBuffer = [];
+
+    async function ask(question) {
+      return new Promise(resolve => {
+        const tempInput = document.createElement('input');
+        tempInput.style.background = '#000';
+        tempInput.style.color = '#0f0';
+        tempInput.style.border = '1px solid #0f0';
+        tempInput.style.fontFamily = 'monospace';
+        tempInput.placeholder = question;
+        outputBox.appendChild(tempInput);
+        tempInput.focus();
+        tempInput.addEventListener('keydown', e => {
+          if (e.key === 'Enter') {
+            const value = tempInput.value;
+            outputBox.removeChild(tempInput);
+            outputBox.innerHTML += value + '\n';
+            resolve(value);
+          }
+        });
+      });
+    }
+
+    function getVarValue(v) {
+      if (v === undefined) return undefined;
+      if (v in vars) return vars[v];
+      return v;
+    }
+
+    function shouldExecute() {
+      return execStack.every(x => x);
+    }
+
+    while (i < lines.length) {
+      let line = lines[i];
+
+      if (capturingFunc && line !== 'endf') {
+        funcBuffer.push(line);
+        i++;
+        continue;
+      }
+
+      if (!shouldExecute() && !line.startsWith('i ') && !line.startsWith('eli ') && line !== 'el' && line !== 'enif') {
+        i++;
+        continue;
+      }
+
+      if (line.startsWith('say ')) {
+        let msg = line.substring(4).replace(/vari,(\w+)/g, (_, v) => vars[v] ?? '[undefined]');
+        outputBox.innerHTML += msg + '\n';
+      }
+
+     else if (line.startsWith('getIn ')) {
+  let parts = line.split(' ');
+  let v = parts[1];
+  let prompt = parts.slice(2).join(' ') || 'Enter number:';
+  let response = await ask(prompt);
+  let num = parseInt(response);
+  if (isNaN(num)) {
+    outputBox.innerHTML += `[Error] Invalid number entered for ${v}\n`;
+    vars[v] = 0;
+  } else {
+    vars[v] = num;
+  }
+}
+
+
+      else if (line.startsWith('get ')) {
+        let parts = line.split(' ');
+        let v = parts[1];
+        let prompt = parts.slice(2).join(' ') || 'Enter string:';
+        let response = await ask(prompt);
+        vars[v] = response; // always string
+      }
+
+      else if (line.startsWith('calc ')) {
+        let [_, target, eq, n1, op, n2] = line.split(' ');
+        let a = parseFloat(getVarValue(n1));
+        let b = parseFloat(getVarValue(n2));
+        let res = 0;
+        if (op == 'a') res = a + b;
+        else if (op == 's') res = a - b;
+        else if (op == 'm') res = a * b;
+        else if (op == 'd') res = a / b;
+        vars[target] = res;
+      }
+
+      else if (line.startsWith('i ')) {
+        let parts = line.split(' ');
+        let v = parts[1];
+        let op = parts[2];
+        let val = parts.slice(3).join(' ');
+        let a = getVarValue(v);
+        let b = getVarValue(val);
+        let condition = false;
+        try {
+          condition = eval(`${JSON.stringify(a)} ${op} ${JSON.stringify(b)}`);
+        } catch {
+          condition = false;
+        }
+        execStack.push(condition && shouldExecute());
+      }
+
+      else if (line.startsWith('eli ')) {
+        if (execStack.length > 1) execStack.pop();
+        let parts = line.split(' ');
+        let v = parts[1];
+        let op = parts[2];
+        let val = parts.slice(3).join(' ');
+        let a = getVarValue(v);
+        let b = getVarValue(val);
+        let condition = false;
+        try {
+          condition = eval(`${JSON.stringify(a)} ${op} ${JSON.stringify(b)}`);
+        } catch {
+          condition = false;
+        }
+        execStack.push(condition && shouldExecute());
+      }
+
+      else if (line === 'el') {
+        if (execStack.length > 1) {
+          let prev = execStack.pop();
+          execStack.push(!prev && shouldExecute());
+        }
+      }
+
+      else if (line === 'enif') {
+        if (execStack.length > 1) execStack.pop();
+      }
+
+      else if (line.startsWith('set ')) {
+        let match = line.match(/^set (\w+) = (.+)$/);
+        if (match) {
+          let [, name, val] = match;
+          let parsedVal = val;
+          if (!isNaN(parseFloat(val))) parsedVal = parseFloat(val);
+          else if (val.toLowerCase() === 'true') parsedVal = true;
+          else if (val.toLowerCase() === 'false') parsedVal = false;
+          vars[name] = parsedVal;
+        }
+      }
+
+      else if (line.startsWith('ar ')) {
+        let match = line.match(/^ar (\w+) = (.+)$/);
+        if (match) {
+          let [, name, items] = match;
+          vars[name] = items.split(',').map(s => s.trim());
+        }
+      }
+
+      else if (line.startsWith('joi,')) {
+        let [_, a, b] = line.split(' ');
+        vars[a + b] = (vars[a] ?? '') + ' ' + (vars[b] ?? '');
+      }
+
+      else if (line.startsWith('fun ')) {
+        capturingFunc = true;
+        currentFunc = line.split(' ')[1];
+        funcBuffer = [];
+      }
+
+      else if (line === 'endf') {
+        capturingFunc = false;
+        funcs[currentFunc] = [...funcBuffer];
+        currentFunc = null;
+      }
+
+      else if (line.startsWith('call ')) {
+        let fname = line.split(' ')[1];
+        let body = funcs[fname] || [];
+        lines.splice(i + 1, 0, ...body);
+      }
+
+      i++;
+    }
+  }
+
+  runBtn.onclick = async () => {
+    outputBox.innerHTML = '';
+    await runVik(inputBox.value);
+  };
+</script>
+
+</body>
+</html>
